@@ -67,6 +67,52 @@ function genHint(count: number): string {
   return `${count} ideas in the sandbox — AI will reconcile them all`
 }
 
+/** Best-effort day count from CreatorSetup's free-text dates (e.g. "Aug 12–14", "3 days"). */
+function inferTripDays(dates: string): number {
+  const d = dates.trim()
+  if (!d) return 3
+  const dayWord = d.match(/(\d+)\s*days?/i)
+  if (dayWord) return Math.min(14, Math.max(1, parseInt(dayWord[1], 10)))
+  if (/\d+\s*hours?/i.test(d)) return 1
+  const span = d.match(/(\d{1,2})\s*[–-]\s*(\d{1,2})/)
+  if (span) {
+    const a = parseInt(span[1], 10)
+    const b = parseInt(span[2], 10)
+    if (b >= a && b - a <= 30) return Math.min(14, Math.max(1, b - a + 1))
+  }
+  const n = parseInt(d.match(/\b(\d{1,2})\b/)?.[1] ?? '', 10)
+  if (n >= 1 && n <= 14) return n
+  return 3
+}
+
+/** Builds the single `ideas` string the generate-trip API sends to the model. */
+function buildIdeasPayload(
+  plan: PlanDetails,
+  board: IdeaItem[],
+  draftText: string,
+  draftBudget: string,
+  draftDealbreaker: string,
+): string {
+  const lines: string[] = []
+  if (plan.name.trim()) lines.push(`Trip name: ${plan.name.trim()}`)
+  if (plan.dates.trim()) lines.push(`Dates / duration: ${plan.dates.trim()}`)
+  if (lines.length) lines.push('')
+  board.forEach((idea, i) => {
+    let row = `${i + 1}. ${idea.text} [max budget: ${idea.budget}]`
+    if (idea.dealbreaker.trim()) row += ` [dealbreakers: ${idea.dealbreaker.trim()}]`
+    lines.push(row)
+  })
+  const draft = draftText.trim()
+  if (draft) {
+    if (board.length) lines.push('')
+    lines.push(
+      `${board.length ? 'Also typed in the form (not yet on the board)' : 'Idea from the form'}: ${draft} [max budget: ${draftBudget}]` +
+        (draftDealbreaker.trim() ? ` [dealbreakers: ${draftDealbreaker.trim()}]` : ''),
+    )
+  }
+  return lines.join('\n')
+}
+
 // ── Screen component ────────────────────────────────────────────────────────
 
 export default function IdeaSandbox({ planDetails, ideas, onAddIdea, onGenerate, showToast }: Props) {
@@ -102,41 +148,48 @@ export default function IdeaSandbox({ planDetails, ideas, onAddIdea, onGenerate,
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAdd() }
   }
 
-    // This function will run when the user clicks your "Generate Trip" button
-const handleGenerateTrip = async () => {
-  try {
-    console.log("Sending order to the AI...");
-    
-    // TEMP DATA - replace with real user input from your screens
+  /** Returns true only when the API returns a usable itinerary (so the app can advance). */
+  const handleGenerateTrip = async (): Promise<boolean> => {
+    const hasBoard = ideas.length > 0
+    const hasDraft = ideaText.trim().length > 0
+    if (!hasBoard && !hasDraft) {
+      showToast('Add at least one idea (or finish typing in the form) first.')
+      return false
+    }
+
+    const loc = planDetails.location.trim() || 'your destination'
     const orderData = {
-      location: "Ottawa",
-      days: 3,
-      ideas: "I want to eat food, and check out a museum"
-    };
+      location: loc,
+      days: inferTripDays(planDetails.dates),
+      ideas: buildIdeasPayload(
+        planDetails,
+        ideas,
+        ideaText,
+        budget,
+        dealbreaker,
+      ),
+    }
 
-    // 2. Call your backend route
-    const response = await fetch('/api/generate-trip', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(orderData), // Convert our order into text for the journey
-    });
+    try {
+      const response = await fetch('/api/generate-trip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData),
+      })
 
-    // 3. Receive the cooked data back!
-    const tripData = await response.json();
-    setTrip(tripData); 
-    console.log("Data saved to React state!");
-    
-    // 4. Log it to prove it works!
-    console.log("THE AI RESPONDED! Here is your trip:", tripData);
-    
-    // (Later, you will do something like setItinerary(tripData) here to show it on screen)
-
-  } catch (error) {
-    console.error("The waiter tripped! Error:", error);
+      const tripData = await response.json()
+      if (!response.ok || tripData?.error) {
+        showToast(typeof tripData?.error === 'string' ? tripData.error : 'Failed to generate trip. Please try again.')
+        return false
+      }
+      setTrip(tripData)
+      return true
+    } catch (error) {
+      console.error('Generate trip error:', error)
+      showToast('Could not reach the trip planner. Try again.')
+      return false
+    }
   }
-};
 
   return (
     <section
@@ -267,9 +320,9 @@ const handleGenerateTrip = async () => {
       {/* ── Sticky generate button ────────────────────────────── */}
       <div className="sticky bottom-0 pt-[14px] bg-gradient-to-t from-cream from-[70%] to-transparent">
         <button
-          onClick={() => {
-            onGenerate()
-            handleGenerateTrip()
+          onClick={async () => {
+            const ok = await handleGenerateTrip()
+            if (ok) onGenerate()
           }}
           className="btn-primary bg-ink text-white shadow-[0_2px_10px_rgba(44,43,40,0.16)] hover:bg-[#1c1b18]"
           aria-label="Generate AI itinerary"
