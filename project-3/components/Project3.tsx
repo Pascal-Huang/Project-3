@@ -49,7 +49,8 @@ export default function HarmonyApp() {
     setScreen('draft')
   }
 
-  const handleApprove = () => {
+  const handleApprove = (trip: GeneratedTrip) => {
+    setGeneratedTrip(trip)
     setScreen('success')
   }
 
@@ -114,6 +115,7 @@ export default function HarmonyApp() {
         <SuccessState
           key="success"
           planDetails={planDetails}
+          trip={generatedTrip!}
           onStartOver={handleStartOver}
           showToast={showToast}
         />

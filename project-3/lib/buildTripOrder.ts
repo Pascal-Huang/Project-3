@@ -1,4 +1,21 @@
-import type { IdeaItem, PlanDetails } from '../types'
+import type { IdeaItem, PlanDetails, TimeCommitment } from '../types'
+
+const TIME_COMMITMENT_LABEL: Record<TimeCommitment, string> = {
+  regular: 'Regular visit (~1–2 hrs)',
+  half_day: 'Half day',
+  full_day: 'Full day',
+  anchor: 'Trip anchor / major focus',
+}
+
+function priorityLabel(n: number): string {
+  const p = Math.min(5, Math.max(1, Math.round(n)))
+  const words = ['', 'Nice to have', 'Low', 'Medium', 'High', 'Must-include'] as const
+  return `${p}/5 (${words[p]})`
+}
+
+function ideaMeta(idea: Pick<IdeaItem, 'priority' | 'timeCommitment'>): string {
+  return `[priority: ${priorityLabel(idea.priority)}] [time: ${TIME_COMMITMENT_LABEL[idea.timeCommitment]}]`
+}
 
 /** JSON shape returned by `/api/generate-trip` (Gemini). */
 export interface GeneratedTrip {
@@ -39,34 +56,47 @@ export function buildIdeasPayload(
   plan: PlanDetails,
   board: IdeaItem[],
   draftText: string,
-  draftBudget: string,
-  draftDealbreaker: string,
+  draft: Pick<IdeaItem, 'priority' | 'timeCommitment' | 'dealbreaker'>,
 ): string {
   const lines: string[] = []
   if (plan.name.trim()) lines.push(`Trip name: ${plan.name.trim()}`)
   if (plan.dates.trim()) lines.push(`Dates / duration: ${plan.dates.trim()}`)
+  if (plan.group.trim()) lines.push(`Group dynamic: ${plan.group.trim()}`)
+  if (plan.budget.trim()) lines.push(`Overall trip budget: ${plan.budget.trim()}`)
   if (lines.length) lines.push('')
   board.forEach((idea, i) => {
-    let row = `${i + 1}. ${idea.text} [max budget: ${idea.budget}]`
+    let row = `${i + 1}. ${idea.text} ${ideaMeta(idea)}`
     if (idea.dealbreaker.trim()) row += ` [dealbreakers: ${idea.dealbreaker.trim()}]`
     lines.push(row)
   })
-  const draft = draftText.trim()
-  if (draft) {
+  const draftT = draftText.trim()
+  if (draftT) {
     if (board.length) lines.push('')
+    const meta = ideaMeta(draft)
     lines.push(
-      `${board.length ? 'Also typed in the form (not yet on the board)' : 'Idea from the form'}: ${draft} [max budget: ${draftBudget}]` +
-        (draftDealbreaker.trim() ? ` [dealbreakers: ${draftDealbreaker.trim()}]` : ''),
+      `${board.length ? 'Also typed in the form (not yet on the board)' : 'Idea from the form'}: ${draftT} ${meta}` +
+        (draft.dealbreaker.trim() ? ` [dealbreakers: ${draft.dealbreaker.trim()}]` : ''),
     )
   }
+
+  console.log('buildIdeasPayload lines:', lines)
+
   return lines.join('\n')
 }
 
 export interface DraftFields {
   text: string
-  budget: string
+  priority: number
+  timeCommitment: TimeCommitment
   dealbreaker: string
 }
+
+const emptyDraft = (): DraftFields => ({
+  text: '',
+  priority: 3,
+  timeCommitment: 'half_day',
+  dealbreaker: '',
+})
 
 /** Body for `POST /api/generate-trip` — same shape from Sandbox (with draft) and Draft (board only). */
 export function buildOrderData(
@@ -74,10 +104,17 @@ export function buildOrderData(
   ideas: IdeaItem[],
   draft?: DraftFields,
 ) {
-  const d = draft ?? { text: '', budget: '$$', dealbreaker: '' }
+  const d = draft ?? emptyDraft()
+  const planOut = {
+    name: plan.name.trim(),
+    dates: plan.dates.trim(),
+    group: plan.group.trim(),
+    budget: plan.budget.trim(),
+  }
   return {
     location: plan.location.trim() || 'your destination',
     days: inferTripDays(plan.dates),
-    ideas: buildIdeasPayload(plan, ideas, d.text, d.budget, d.dealbreaker),
+    plan: planOut,
+    ideas: buildIdeasPayload(plan, ideas, d.text, d),
   }
 }

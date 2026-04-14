@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { PlanDetails, IdeaItem } from '../../types'
+import { PlanDetails, IdeaItem, TimeCommitment } from '../../types'
 import { buildOrderData, isGeneratedTrip, type GeneratedTrip } from '../../lib/buildTripOrder'
 import { getIdeaIcon } from '../../lib/utils'
 import TopBar from '../TopBar'
@@ -16,6 +16,15 @@ interface Props {
 }
 
 // ── Internal helpers ────────────────────────────────────────────────────────
+
+const TIME_OPTIONS: { value: TimeCommitment; label: string; short: string }[] = [
+  { value: 'regular', label: 'Regular visit (~1–2 hrs)', short: '~1–2h' },
+  { value: 'half_day', label: 'Half day', short: '½ day' },
+  { value: 'full_day', label: 'Full day', short: 'Full day' },
+  { value: 'anchor', label: 'Trip anchor / major focus', short: 'Anchor' },
+]
+
+const PRIORITY_HINTS = ['', 'Nice to have', 'Low', 'Medium', 'High', 'Must-include'] as const
 
 function CardLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -40,12 +49,17 @@ function IdeaCard({ idea }: { idea: IdeaItem }) {
       <div className="flex-1">
         <p className="text-[0.88rem] text-ink leading-[1.45] break-words">{idea.text}</p>
         <div className="flex gap-1.5 flex-wrap mt-1.5">
-          {/* Budget chip */}
           <span
             className="text-[0.68rem] font-semibold px-2 py-[2px] rounded-full bg-sand-light text-sand"
-            aria-label={`Budget: ${idea.budget}`}
+            aria-label={`Priority ${idea.priority} of 5`}
           >
-            {idea.budget}
+            P{idea.priority}/5
+          </span>
+          <span
+            className="text-[0.68rem] font-semibold px-2 py-[2px] rounded-full bg-sage-dim text-sage"
+            aria-label={`Time: ${TIME_OPTIONS.find(o => o.value === idea.timeCommitment)?.label ?? idea.timeCommitment}`}
+          >
+            {TIME_OPTIONS.find(o => o.value === idea.timeCommitment)?.short ?? idea.timeCommitment}
           </span>
           {/* Dealbreaker chip */}
           {idea.dealbreaker && (
@@ -71,7 +85,7 @@ function genHint(count: number): string {
 
 const GENERATE_PHRASES = [
   "AI is drafting your itinerary…",
-  'Weighing group ideas & budgets…',
+  'Balancing priorities & time on the calendar…',
   'Checking dealbreakers & timing…',
   'Almost ready…',
 ]
@@ -79,9 +93,10 @@ const GENERATE_PHRASES = [
 // ── Screen component ────────────────────────────────────────────────────────
 
 export default function IdeaSandbox({ planDetails, ideas, onAddIdea, onTripReady, onGenerate, showToast }: Props) {
-  const [ideaText,     setIdeaText]     = useState('')
-  const [budget,       setBudget]       = useState<'$' | '$$' | '$$$'>('$$')
-  const [dealbreaker,  setDealbreaker]  = useState('')
+  const [ideaText,        setIdeaText]        = useState('')
+  const [priority,        setPriority]        = useState(3)
+  const [timeCommitment,  setTimeCommitment]  = useState<TimeCommitment>('half_day')
+  const [dealbreaker,     setDealbreaker]     = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [genLabel,     setGenLabel]     = useState(GENERATE_PHRASES[0])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -109,10 +124,11 @@ export default function IdeaSandbox({ planDetails, ideas, onAddIdea, onTripReady
       return
     }
     onAddIdea({
-      id:          crypto.randomUUID(),
+      id:             crypto.randomUUID(),
       text,
-      budget,
-      dealbreaker: dealbreaker.trim(),
+      priority,
+      timeCommitment,
+      dealbreaker:    dealbreaker.trim(),
     })
     setIdeaText('')
     setDealbreaker('')
@@ -137,7 +153,8 @@ export default function IdeaSandbox({ planDetails, ideas, onAddIdea, onTripReady
 
     const orderData = buildOrderData(planDetails, ideas, {
       text: ideaText,
-      budget,
+      priority,
+      timeCommitment,
       dealbreaker,
     })
 
@@ -225,6 +242,12 @@ export default function IdeaSandbox({ planDetails, ideas, onAddIdea, onTripReady
           { icon: '📍', value: planDetails.location },
           { icon: '🗓️', value: planDetails.dates },
           { icon: '✦',  value: planDetails.name },
+          ...(planDetails.group.trim()
+            ? [{ icon: '👥', value: planDetails.group } as const]
+            : []),
+          ...(planDetails.budget.trim()
+            ? [{ icon: '💰', value: planDetails.budget } as const]
+            : []),
         ].map(({ icon, value }, i) => (
           <span key={i} className="flex items-center gap-[5px] text-[0.8rem] text-ink-mid font-medium">
             {i > 0 && <span className="w-[3px] h-[3px] rounded-full bg-cream-deep mx-1" aria-hidden="true" />}
@@ -280,23 +303,53 @@ export default function IdeaSandbox({ planDetails, ideas, onAddIdea, onTripReady
           />
         </div>
 
-        {/* Budget + Dealbreaker side by side */}
+        {/* Priority */}
+        <div className="mb-[13px]">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <label htmlFor="inp-priority" className="block text-[0.74rem] font-semibold tracking-[0.05em] uppercase text-ink-mid">
+              Priority
+            </label>
+            <span className="text-[0.72rem] font-medium text-ink-mid tabular-nums" id="priority-hint">
+              {priority}/5 — {PRIORITY_HINTS[priority]}
+            </span>
+          </div>
+          <input
+            id="inp-priority"
+            type="range"
+            min={1}
+            max={5}
+            step={1}
+            value={priority}
+            onChange={e => setPriority(Number(e.target.value))}
+            disabled={isGenerating}
+            aria-valuemin={1}
+            aria-valuemax={5}
+            aria-valuenow={priority}
+            aria-valuetext={`${priority} of 5, ${PRIORITY_HINTS[priority]}`}
+            aria-describedby="priority-hint"
+            className="w-full h-2 rounded-full appearance-none bg-cream-deep cursor-pointer disabled:opacity-50 disabled:pointer-events-none accent-[#7A9E8E]"
+          />
+        </div>
+
+        {/* Time commitment + Dealbreaker */}
         <div className="grid grid-cols-2 gap-2.5">
           <div>
-            <label htmlFor="inp-budget" className="block text-[0.74rem] font-semibold tracking-[0.05em] uppercase text-ink-mid mb-1.5">
-              Max Budget
+            <label htmlFor="inp-time" className="block text-[0.74rem] font-semibold tracking-[0.05em] uppercase text-ink-mid mb-1.5">
+              Time commitment
             </label>
             <select
-              id="inp-budget"
-              value={budget}
-              onChange={e => setBudget(e.target.value as '$' | '$$' | '$$$')}
+              id="inp-time"
+              value={timeCommitment}
+              onChange={e => setTimeCommitment(e.target.value as TimeCommitment)}
               disabled={isGenerating}
-              aria-label="Maximum budget"
+              aria-label="Time commitment for this idea"
               className="select-field"
             >
-              <option value="$">$ — Budget</option>
-              <option value="$$">$$ — Mid-range</option>
-              <option value="$$$">$$$ — Premium</option>
+              {TIME_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </div>
           <div>

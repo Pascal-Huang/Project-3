@@ -9,7 +9,7 @@ interface Props {
   planDetails:  PlanDetails
   ideas:        IdeaItem[]
   initialTrip:  GeneratedTrip | null
-  onApprove:    () => void
+  onApprove:    (trip: GeneratedTrip) => void
   onRegenerate: () => void
   showToast:    (msg: string) => void
 }
@@ -64,12 +64,14 @@ export default function AIDraft({ planDetails, ideas, initialTrip, onApprove, on
   const [isLoading, setIsLoading] = useState(!initialTrip)
   const [loadLabel, setLoadLabel] = useState(PHRASES[0])
 
+  const [tripData, setTripData] = useState<GeneratedTrip | null>(initialTrip)
   const [tripTitle, setTripTitle] = useState(initialTrip?.tripName ?? 'Proposed Itinerary ✦')
   const [itineraryStops, setItineraryStops] = useState<Stop[]>(() =>
     initialTrip ? tripJsonToStops(initialTrip) : [],
   )
 
   const applyTripJson = useCallback((aiData: GeneratedTrip) => {
+    setTripData(aiData)
     setTripTitle(aiData.tripName)
     setItineraryStops(tripJsonToStops(aiData))
   }, [])
@@ -203,7 +205,7 @@ export default function AIDraft({ planDetails, ideas, initialTrip, onApprove, on
 
             <div>
               <div className="grid grid-cols-2 gap-2.5">
-                <button onClick={onApprove} className="flex flex-col items-center gap-[5px] py-4 px-2.5 border-[1.5px] border-cream-deep rounded-panel bg-white font-semibold text-[0.84rem] text-ink-mid shadow-soft transition-all active:scale-[0.95] hover:border-sage hover:bg-sage-dim hover:text-sage">
+                <button onClick={() => tripData && onApprove(tripData)} className="flex flex-col items-center gap-[5px] py-4 px-2.5 border-[1.5px] border-cream-deep rounded-panel bg-white font-semibold text-[0.84rem] text-ink-mid shadow-soft transition-all active:scale-[0.95] hover:border-sage hover:bg-sage-dim hover:text-sage">
                   <span className="text-[1.6rem] leading-none">👍</span>
                   Looks Good
                 </button>

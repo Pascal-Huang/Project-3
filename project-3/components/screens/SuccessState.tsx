@@ -1,10 +1,12 @@
 'use client'
 
 import { PlanDetails } from '../../types'
+import { GeneratedTrip } from '../../lib/buildTripOrder'
 import TopBar from '../TopBar'
 
 interface Props {
   planDetails: PlanDetails
+  trip: GeneratedTrip
   onStartOver: () => void
   showToast:   (msg: string) => void
 }
@@ -23,52 +25,40 @@ interface FinalStop {
   icon:      string
 }
 
-const FINAL_STOPS: FinalStop[] = [
-  {
-    num: 1, numCls: 'bg-sage',
-    accentFrom: 'from-sage', accentTo: 'to-sage-light',
-    when: 'Day 1 · 12:00 PM — Logistics',
-    name: 'Arrival & Check-In',
-    desc: 'Settle in, sync up, low-key start.',
-    icon: '🏨',
-  },
-  {
-    num: 2, numCls: 'bg-sand',
-    accentFrom: 'from-sand', accentTo: 'to-[#d4b896]',
-    when: 'Day 1 · 2:00 PM — Outdoor',
-    name: 'Lakefront Walk',
-    desc: 'Accessible scenic route, no stairs.',
-    icon: '🌿',
-  },
-  {
-    num: 3, numCls: 'bg-terra',
-    accentFrom: 'from-terra', accentTo: 'to-[#cc8a6a]',
-    when: 'Day 1 · 7:00 PM — Dinner',
-    name: 'El Camino Kitchen',
-    desc: 'Street tacos & cocktails. Dealbreaker-safe.',
-    icon: '🌮',
-  },
-  {
-    num: 4, numCls: 'bg-sage',
-    accentFrom: 'from-sage', accentTo: 'to-sand',
-    when: 'Day 2 · 10:00 AM — Brunch',
-    name: 'The Publican',
-    desc: 'Communal tables, all dietary needs covered.',
-    icon: '🍳',
-  },
-  {
-    num: 5, numCls: 'bg-ink-mid',
-    accentFrom: 'from-ink-mid', accentTo: 'to-[#7a7875]',
-    when: 'Day 2 · 1:00 PM — Culture',
-    name: 'Art Institute of Chicago',
-    desc: 'High group consensus. Fully accessible.',
-    icon: '🎨',
-  },
-]
+function tripToStops(trip: GeneratedTrip): FinalStop[] {
+  const colors = ['bg-sage', 'bg-sand', 'bg-terra']
+  const accents = [
+    { from: 'from-sage', to: 'to-sage-light' },
+    { from: 'from-sand', to: 'to-[#d4b896]' },
+    { from: 'from-terra', to: 'to-[#cc8a6a]' },
+  ]
+  const stops: FinalStop[] = []
+  let num = 1
+
+  trip.itinerary.forEach(day => {
+    day.activities.forEach(activity => {
+      const colorIdx = (num - 1) % colors.length
+      stops.push({
+        num,
+        numCls: colors[colorIdx],
+        accentFrom: accents[colorIdx].from,
+        accentTo: accents[colorIdx].to,
+        when: `Day ${day.day} · ${activity.time}`,
+        name: activity.name,
+        desc: activity.description,
+        icon: '📍', // Default icon, could map from tags
+      })
+      num++
+    })
+  })
+
+  return stops
+}
 
 // ── Screen component ────────────────────────────────────────────────────────
 
-export default function SuccessState({ planDetails, onStartOver, showToast }: Props) {
+export default function SuccessState({ planDetails, trip, onStartOver, showToast }: Props) {
+  const stops = tripToStops(trip)
 
   const handleCopyLink = () => {
     const url = `https://harmony.app/p/${Math.random().toString(36).slice(2, 8).toUpperCase()}`
@@ -80,10 +70,10 @@ export default function SuccessState({ planDetails, onStartOver, showToast }: Pr
   }
 
   const handleShareText = () => {
-    const stops = FINAL_STOPS.map(s => `${s.num}. ${s.when} — ${s.name}`).join('\n')
-    const msg   = `✅ ${planDetails.name} — Plan Locked!\n📍 ${planDetails.location}  ·  🗓️ ${planDetails.dates}\n\n${stops}\n\nSee you there! 🎉`
+    const stopsText = stops.map(s => `${s.num}. ${s.when} — ${s.name}`).join('\n')
+    const msg   = `✅ ${trip.tripName} — Plan Locked!\n📍 ${planDetails.location}  ·  🗓️ ${planDetails.dates}\n\n${stopsText}\n\nSee you there! 🎉`
     if (navigator.share) {
-      navigator.share({ title: planDetails.name, text: msg })
+      navigator.share({ title: trip.tripName, text: msg })
     } else {
       navigator.clipboard?.writeText(msg)
       showToast('Plan text copied! 💬')
@@ -142,7 +132,7 @@ export default function SuccessState({ planDetails, onStartOver, showToast }: Pr
           </p>
 
           <div className="flex flex-col gap-[9px]">
-            {FINAL_STOPS.map((stop, i) => (
+            {stops.map((stop, i) => (
               <article
                 key={stop.num}
                 className="bg-white border border-cream-deep rounded-panel overflow-hidden shadow-soft animate-fade-up"
