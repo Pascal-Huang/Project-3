@@ -95,7 +95,7 @@ const GENERATE_PHRASES = [
 export default function IdeaSandbox({ planDetails, ideas, onAddIdea, onTripReady, onGenerate, showToast }: Props) {
   const [ideaText,        setIdeaText]        = useState('')
   const [priority,        setPriority]        = useState(3)
-  const [timeCommitment,  setTimeCommitment]  = useState<TimeCommitment>('half_day')
+  const [timeCommitment,  setTimeCommitment]  = useState<TimeCommitment>('regular')
   const [dealbreaker,     setDealbreaker]     = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [genLabel,     setGenLabel]     = useState(GENERATE_PHRASES[0])
