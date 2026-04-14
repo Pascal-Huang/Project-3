@@ -4,6 +4,8 @@ export interface PlanDetails {
   name:     string
   location: string
   dates:    string
+  group:    string
+  budget:   string
 }
 
 export interface IdeaItem {

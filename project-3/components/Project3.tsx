@@ -22,7 +22,7 @@ import Toast        from './Toast'
  */
 export default function HarmonyApp() {
   const [screen, setScreen]       = useState<Screen>('setup')
-  const [planDetails, setPlan]    = useState<PlanDetails>({ name: '', location: '', dates: '' })
+  const [planDetails, setPlan]    = useState<PlanDetails>({ name: '', location: '', dates: '', group: '', budget: '' })
   const [ideas, setIdeas]         = useState<IdeaItem[]>([])
   const [generatedTrip, setGeneratedTrip] = useState<GeneratedTrip | null>(null)
   const [draftKey, setDraftKey]   = useState(0)
@@ -64,7 +64,7 @@ export default function HarmonyApp() {
   }
 
   const handleStartOver = () => {
-    setPlan({ name: '', location: '', dates: '' })
+    setPlan({ name: '', location: '', dates: '', group: '', budget: '' })
     setIdeas([])
     setGeneratedTrip(null)
     setDraftKey(0)

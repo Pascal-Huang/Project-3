@@ -61,12 +61,16 @@ export default function CreatorSetup({ onSubmit }: Props) {
   const [name,     setName]     = useState('')
   const [location, setLocation] = useState('')
   const [dates,    setDates]    = useState('')
+  const [group,   setGroup]    = useState('Friends')
+  const [budget,  setBudget]   = useState('Standard')
 
   const handleSubmit = () => {
     onSubmit({
       name:     name.trim()     || 'My Plan',
       location: location.trim() || 'Location TBD',
       dates:    dates.trim()    || 'Dates TBD',
+      group:    group.trim()    || 'Group Dynamic TBD',
+      budget:   budget.trim()   || 'Budget TBD',
     })
   }
 
@@ -104,7 +108,7 @@ export default function CreatorSetup({ onSubmit }: Props) {
           aria-label="Social proof"
         >
           <div className="flex" aria-hidden="true">
-            {(['😉', '📺', '😍'] as const).map((emoji, i) => (
+            {(['🌴', '✈️', '😎'] as const).map((emoji, i) => (
               <div
                 key={emoji}
                 className={[
@@ -120,8 +124,8 @@ export default function CreatorSetup({ onSubmit }: Props) {
           </div>
           <p className="text-[0.8rem] text-ink-mid flex-1">
             Works for{' '}
-            <strong className="text-ink font-semibold">weekend trips</strong>,{' '}
-            <strong className="text-ink font-semibold">dinner hangs</strong>,
+            <strong className="text-ink font-semibold">vacations</strong>,{' '}
+            <strong className="text-ink font-semibold">dinner hangouts</strong>,
             {' '}and everything in between
           </p>
         </div>
@@ -132,6 +136,42 @@ export default function CreatorSetup({ onSubmit }: Props) {
           <Field id="inp-name"  label="Plan Name"       value={name}     onChange={setName}     placeholder="e.g. Ottawa Weekend, Friday Dinner" maxLength={52} />
           <Field id="inp-loc"   label="Location"        value={location} onChange={setLocation} placeholder="e.g. Downtown Toronto, Japan"                maxLength={60} />
           <Field id="inp-dates" label="Dates / Duration" value={dates}   onChange={setDates}    placeholder="e.g. Aug 12–14  or  4 hours"          maxLength={40} />
+          
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label htmlFor="inp-budget" className="block text-[0.74rem] font-semibold tracking-[0.05em] uppercase text-ink-mid mb-1.5">
+                Budget
+              </label>
+              <select
+                id="inp-budget"
+                value={budget}
+                onChange={e => setBudget(e.target.value)}
+                aria-label="Select budget"
+                className="select-field"
+              >
+                <option value="Affordable">Affordable 💵</option>
+                <option value="Standard">Standard 💰</option>
+                <option value="Luxury">Luxury 💎</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="inp-group-dynamic" className="block text-[0.74rem] font-semibold tracking-[0.05em] uppercase text-ink-mid mb-1.5">
+                Group Dynamic
+              </label>
+              <select
+                id="inp-group-dynamic"
+                value={group}
+                onChange={e => setGroup(e.target.value)}
+                aria-label="Select group dynamic"
+                className="select-field"
+              >
+                <option value="Solo">Solo 🕵️</option>
+                <option value="Duo">Couple / Duo 👫</option>
+                <option value="Friends">Friends 🤝</option>
+                <option value="Family">Family 👨‍👩‍👧‍👦</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         {/* Submit */}

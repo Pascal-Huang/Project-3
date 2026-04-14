@@ -6,7 +6,7 @@ export interface GeneratedTrip {
   itinerary: {
     day: number
     theme: string
-    activities: { time: string; description: string }[]
+    activities: { time: string; name: string; description: string; tags: string[] }[]
   }[]
 }
 

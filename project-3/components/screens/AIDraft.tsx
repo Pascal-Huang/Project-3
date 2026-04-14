@@ -44,9 +44,12 @@ function tripJsonToStops(aiData: GeneratedTrip): Stop[] {
         time: activity.time,
         dotCls,
         hasLine: true,
-        name: activity.description.split('.')[0] || 'Activity',
-        desc: activity.description,
-        tags: [{ label: day.theme, cls: 'bg-sage-dim text-sage' }],
+        name: activity.name,
+            desc: activity.description,
+            tags: activity.tags.map((tagStr: string) => ({ 
+              label: tagStr, 
+              cls: 'bg-sage-dim text-sage' 
+            }))
       })
     })
   })

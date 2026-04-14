@@ -12,36 +12,47 @@ export async function POST(req: Request) {
 
     // THE PROMPT
     const prompt = `
-      You are an expert, local travel agent. 
-      Plan a highly logical ${days}-day trip to ${location} incorporating the following user ideas and constraints: "${ideas}".
-      
-      RULES:
-      - Only suggest real, well-known locations and restaurants.
-      - Ensure geographical logic (don't put things across the city from each other back-to-back).
-      - You MUST return your answer in valid JSON format. Do not include any intro or outro text.
-      
-      Your JSON output must exactly match this structure:
+      You are a local travel expert. Plan a ${days}-day trip to ${location}.
+
+      CONTEXT:
+      <user_ideas>${ideas.slice(0, 400)}</user_ideas>
+
+      RULES (follow exactly):
+      1. Only use real, named places — never generic descriptions.
+      2. Group activities geographically — no cross-city back-to-back stops.
+      3. Activity "name": 3–5 words, specific (e.g. "Lunch at The Manx Pub").
+      4. Activity "description": exactly 1 sentence, 15–25 words, vivid and specific.
+      5. Activity "tags": 1–3 short labels (e.g. ["Culture", "$$", "Outdoor"]).
+      6. Day "theme": 1–3 words.
+      7. If you are not confident about a specific venue, pick a different one you know well.
+
+      Respond ONLY with valid JSON. No explanation, no markdown, no code fences.
+
       {
-        "tripName": "Creative name for the trip",
+        "tripName": "string",
         "itinerary": [
           {
             "day": 1,
-            "theme": "Theme of the day",
+            "theme": "string",
             "activities": [
-              { "time": "9:00 AM", "description": "Specific location and activity" }
+              {
+                "time": "9:00 AM",
+                "name": "string",
+                "description": "string",
+                "tags": ["string"]
+              }
             ]
           }
         ]
       }
-    `;
+      `;
 
-    // 3. Send to Gemini 2.5 Flash
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
     });
 
-    // 4. Clean the response
+    // Clean the response
     // Sometimes AI wraps JSON in markdown blocks (```json ... ```). 
     // We strip that out so JSON.parse doesn't throw an error.
     const rawText = response.text || '';
