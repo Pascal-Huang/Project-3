@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Screen, PlanDetails, IdeaItem } from '../types'
 import type { GeneratedTrip } from '../lib/buildTripOrder'
 import CreatorSetup from './screens/CreatorSetup'
@@ -17,7 +17,6 @@ import Toast        from './Toast'
  *  - screen       → which of the 4 screens is visible
  *  - planDetails  → set by CreatorSetup, read by all subsequent screens
  *  - ideas        → accumulated IdeaItems from IdeaSandbox
- *  - draftKey     → incrementing key forces AIDraft to re-mount on Regenerate
  *  - toastMessage → null = hidden, string = visible
  */
 export default function HarmonyApp() {
@@ -25,14 +24,46 @@ export default function HarmonyApp() {
   const [planDetails, setPlan]    = useState<PlanDetails>({ name: '', location: '', dates: '', group: '', budget: '' })
   const [ideas, setIdeas]         = useState<IdeaItem[]>([])
   const [generatedTrip, setGeneratedTrip] = useState<GeneratedTrip | null>(null)
-  const [draftKey, setDraftKey]   = useState(0)
   const [toastMsg, setToastMsg]   = useState<string | null>(null)
+  const [shareBinId, setShareBinId] = useState<string | null>(null)
 
   // ── Toast helper ────────────────────────────────────────────
   const showToast = useCallback((msg: string) => {
     setToastMsg(msg)
     setTimeout(() => setToastMsg(null), 2600)
   }, [])
+
+  // Open `/?share=<binId>` to load a JSONBin-backed sandbox for group collaboration.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const id = new URLSearchParams(window.location.search).get('share')?.trim()
+    if (!id) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/share-bin?binId=${encodeURIComponent(id)}`)
+        const data = await res.json()
+        if (cancelled) return
+        if (!res.ok) {
+          showToast(typeof data.error === 'string' ? data.error : 'Could not open shared trip.')
+          return
+        }
+        const rec = data.record as { planDetails?: PlanDetails; ideas?: IdeaItem[] } | undefined
+        if (rec?.planDetails && Array.isArray(rec.ideas)) {
+          setPlan(rec.planDetails)
+          setIdeas(rec.ideas)
+          setShareBinId(id)
+          setScreen('sandbox')
+          showToast('Loaded shared sandbox — collaborate on the idea board.')
+        }
+      } catch {
+        if (!cancelled) showToast('Could not load shared link.')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [showToast])
 
   // ── Navigation handlers ─────────────────────────────────────
   const handleSetupSubmit = (details: PlanDetails) => {
@@ -54,21 +85,18 @@ export default function HarmonyApp() {
     setScreen('success')
   }
 
-  /**
-   * Incrementing draftKey forces React to unmount + remount <AIDraft>,
-   * re-triggering its useEffect loading sequence — no extra prop needed.
-   */
-  const handleRegenerate = () => {
-    showToast('Generating a fresh itinerary…')
+  /** Back to the sandbox so the user can add or change ideas before generating again. */
+  const handleReviseInSandbox = () => {
+    showToast('Edit your ideas on the board, then tap Generate Itinerary again.')
     setGeneratedTrip(null)
-    setDraftKey(k => k + 1)
+    setScreen('sandbox')
   }
 
   const handleStartOver = () => {
     setPlan({ name: '', location: '', dates: '', group: '', budget: '' })
     setIdeas([])
     setGeneratedTrip(null)
-    setDraftKey(0)
+    setShareBinId(null)
     setScreen('setup')
   }
 
@@ -92,6 +120,8 @@ export default function HarmonyApp() {
           key="sandbox"
           planDetails={planDetails}
           ideas={ideas}
+          shareBinId={shareBinId}
+          onShareBinId={setShareBinId}
           onAddIdea={handleAddIdea}
           onTripReady={setGeneratedTrip}
           onGenerate={handleGenerate}
@@ -101,12 +131,12 @@ export default function HarmonyApp() {
 
       {screen === 'draft' && (
         <AIDraft
-          key={draftKey}           // re-mount triggers fresh loading animation
+          key="draft"
           planDetails={planDetails}
           ideas={ideas}
           initialTrip={generatedTrip}
           onApprove={handleApprove}
-          onRegenerate={handleRegenerate}
+          onRevise={handleReviseInSandbox}
           showToast={showToast}
         />
       )}

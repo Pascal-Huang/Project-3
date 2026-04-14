@@ -9,6 +9,9 @@ import TopBar from '../TopBar'
 interface Props {
   planDetails: PlanDetails
   ideas:       IdeaItem[]
+  /** JSONBin id when this sandbox is shared or opened from a share link. */
+  shareBinId: string | null
+  onShareBinId: (binId: string) => void
   onAddIdea:   (idea: IdeaItem) => void
   onTripReady: (trip: GeneratedTrip) => void
   onGenerate:  () => void
@@ -92,13 +95,31 @@ const GENERATE_PHRASES = [
 
 // ── Screen component ────────────────────────────────────────────────────────
 
-export default function IdeaSandbox({ planDetails, ideas, onAddIdea, onTripReady, onGenerate, showToast }: Props) {
+function shareUrlForBin(binId: string): string {
+  if (typeof window === 'undefined') return ''
+  const u = new URL(window.location.href)
+  u.search = ''
+  u.searchParams.set('share', binId)
+  return u.toString()
+}
+
+export default function IdeaSandbox({
+  planDetails,
+  ideas,
+  shareBinId,
+  onShareBinId,
+  onAddIdea,
+  onTripReady,
+  onGenerate,
+  showToast,
+}: Props) {
   const [ideaText,        setIdeaText]        = useState('')
   const [priority,        setPriority]        = useState(3)
   const [timeCommitment,  setTimeCommitment]  = useState<TimeCommitment>('regular')
   const [dealbreaker,     setDealbreaker]     = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [genLabel,     setGenLabel]     = useState(GENERATE_PHRASES[0])
+  const [shareBusy, setShareBusy] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const generateInFlightRef = useRef(false)
 
@@ -139,6 +160,63 @@ export default function IdeaSandbox({ planDetails, ideas, onAddIdea, onTripReady
     if (isGenerating) return
     // Enter (without Shift) submits; Shift+Enter inserts newline
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAdd() }
+  }
+
+  const copyShareLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url)
+      showToast('Share link copied to clipboard!')
+    } catch {
+      showToast('Could not copy automatically — copy the link from the address bar.')
+    }
+  }
+
+  const handleCreateShare = async () => {
+    if (shareBusy || isGenerating) return
+    setShareBusy(true)
+    try {
+      const res = await fetch('/api/share-bin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planDetails, ideas }),
+      })
+      const data = await res.json()
+      if (!res.ok || typeof data.binId !== 'string') {
+        showToast(typeof data.error === 'string' ? data.error : 'Could not create share link.')
+        return
+      }
+      onShareBinId(data.binId)
+      const url = typeof data.shareUrl === 'string' ? data.shareUrl : shareUrlForBin(data.binId)
+      await copyShareLink(url)
+    } catch (e) {
+      console.error('Create share error:', e)
+      showToast('Could not reach the sharing service.')
+    } finally {
+      setShareBusy(false)
+    }
+  }
+
+  const handlePushShare = async () => {
+    if (!shareBinId || shareBusy || isGenerating) return
+    setShareBusy(true)
+    try {
+      const res = await fetch('/api/share-bin', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ binId: shareBinId, planDetails, ideas }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        showToast(typeof data.error === 'string' ? data.error : 'Could not update shared board.')
+        return
+      }
+      showToast('Shared board updated — others can refresh to see changes.')
+    } catch (e) {
+      console.error('Push share error:', e)
+      showToast('Could not reach the sharing service.')
+    } finally {
+      setShareBusy(false)
+    }
   }
 
   /** Returns true only when the API returns a usable itinerary (so the app can advance). */
@@ -254,6 +332,56 @@ export default function IdeaSandbox({ planDetails, ideas, onAddIdea, onTripReady
             {icon} <strong className="text-ink font-semibold">{value}</strong>
           </span>
         ))}
+      </div>
+
+      {/* ── Share / collaborate (JSONBin) ─────────────────────── */}
+      <div
+        className="bg-white border border-cream-deep rounded-panel px-4 py-3 shadow-soft mb-[18px]"
+        role="region"
+        aria-label="Share sandbox with group"
+      >
+        <p className="text-[0.68rem] font-semibold tracking-[0.1em] uppercase text-ink-faint mb-2">
+          Group collaboration
+        </p>
+        <p className="text-[0.78rem] text-ink-mid leading-relaxed mb-3">
+          Create a link so others can open this trip and add ideas on the board. Save updates to the cloud when your group adds or changes ideas.
+        </p>
+        <div className="flex flex-col gap-2">
+          {!shareBinId ? (
+            <button
+              type="button"
+              onClick={handleCreateShare}
+              disabled={isGenerating || shareBusy}
+              className="flex items-center justify-center gap-1.5 px-4 py-[10px] rounded-card bg-white border border-cream-deep text-ink font-semibold text-[0.83rem] shadow-soft transition-all active:scale-[0.98] hover:bg-parchment disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {shareBusy ? 'Creating link…' : '🔗 Create share link'}
+            </button>
+          ) : (
+            <>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={() => void copyShareLink(shareUrlForBin(shareBinId))}
+                  disabled={isGenerating || shareBusy}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-[10px] rounded-card bg-white border border-cream-deep text-ink font-semibold text-[0.83rem] shadow-soft transition-all active:scale-[0.98] hover:bg-parchment disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  Copy link
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePushShare}
+                  disabled={isGenerating || shareBusy}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-[10px] rounded-card bg-sage text-white font-semibold text-[0.83rem] shadow-[0_2px_10px_rgba(122,158,142,0.2)] transition-all active:scale-[0.97] hover:bg-[#6a8e7e] disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {shareBusy ? 'Saving…' : 'Save to shared board'}
+                </button>
+              </div>
+              <p className="text-[0.7rem] text-ink-faint break-all leading-snug">
+                {shareUrlForBin(shareBinId)}
+              </p>
+            </>
+          )}
+        </div>
       </div>
 
       {/* ── Group Idea Board ──────────────────────────────────── */}

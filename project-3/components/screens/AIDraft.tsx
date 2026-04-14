@@ -9,8 +9,9 @@ interface Props {
   planDetails:  PlanDetails
   ideas:        IdeaItem[]
   initialTrip:  GeneratedTrip | null
-  onApprove:    (trip: GeneratedTrip) => void
-  onRegenerate: () => void
+  onApprove: (trip: GeneratedTrip) => void
+  /** Return to the idea sandbox to add or change ideas before generating again. */
+  onRevise: () => void
   showToast:    (msg: string) => void
 }
 
@@ -60,7 +61,7 @@ function tripJsonToStops(aiData: GeneratedTrip): Stop[] {
   return formattedStops
 }
 
-export default function AIDraft({ planDetails, ideas, initialTrip, onApprove, onRegenerate, showToast }: Props) {
+export default function AIDraft({ planDetails, ideas, initialTrip, onApprove, onRevise, showToast }: Props) {
   const [isLoading, setIsLoading] = useState(!initialTrip)
   const [loadLabel, setLoadLabel] = useState(PHRASES[0])
 
@@ -122,10 +123,6 @@ export default function AIDraft({ planDetails, ideas, initialTrip, onApprove, on
 
     return () => clearInterval(interval)
   }, [initialTrip, generateRealTrip])
-
-  const handleRegenerate = () => {
-    onRegenerate()
-  }
 
   return (
     <section className="flex flex-col w-full max-w-[480px] min-h-[100dvh] px-5 pb-[52px] relative z-[1] animate-fade-up">
@@ -209,10 +206,13 @@ export default function AIDraft({ planDetails, ideas, initialTrip, onApprove, on
                   <span className="text-[1.6rem] leading-none">👍</span>
                   Looks Good
                 </button>
-                {/* Updated this to call our new handleRegenerate function! */}
-                <button onClick={handleRegenerate} className="flex flex-col items-center gap-[5px] py-4 px-2.5 border-[1.5px] border-cream-deep rounded-panel bg-white font-semibold text-[0.84rem] text-ink-mid shadow-soft transition-all active:scale-[0.95] hover:border-sand hover:bg-sand-light hover:text-sand">
+                <button
+                  type="button"
+                  onClick={onRevise}
+                  className="flex flex-col items-center gap-[5px] py-4 px-2.5 border-[1.5px] border-cream-deep rounded-panel bg-white font-semibold text-[0.84rem] text-ink-mid shadow-soft transition-all active:scale-[0.95] hover:border-sand hover:bg-sand-light hover:text-sand"
+                >
                   <span className="text-[1.6rem] leading-none">🔄</span>
-                  Regenerate
+                  Revise
                 </button>
               </div>
             </div>
