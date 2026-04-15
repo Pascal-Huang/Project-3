@@ -48,6 +48,11 @@ export async function POST(req: Request) {
          - strategy "split": split the group for that time block (give a suggested plan for group A and group B).
          - strategy "new_idea": propose a new compromise idea everyone can accept.
       10. If no conflicts exist, still include "harmonyPlan" with conflicts: [] and a short reassuring note.
+      11. Keep harmonyPlan very short for UI blurbs:
+         - note: max 12 words
+         - each conflict title: max 4 words
+         - why: max 10 words
+         - resolution.plan: max 14 words
 
       Respond ONLY with valid JSON. No explanation, no markdown, no code fences.
 

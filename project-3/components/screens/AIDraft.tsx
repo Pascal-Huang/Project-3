@@ -165,69 +165,35 @@ export default function AIDraft({ planDetails, ideas, initialTrip, onApprove, on
               </h2>
             </div>
 
-            {/* ── Group harmony / conflict resolution ─────────────── */}
+            {/* ── Syncing ideas / compact conflict blurb ──────────── */}
             {tripData?.harmonyPlan && (
               <div className="bg-white border border-cream-deep rounded-panel shadow-soft overflow-hidden">
                 <div className="bg-parchment/60 px-[18px] py-[12px] flex items-center gap-2.5 border-b border-cream-deep">
                   <span className="text-[0.95rem]" aria-hidden="true">🤝</span>
                   <span className="text-[0.78rem] font-semibold tracking-[0.06em] uppercase text-ink-mid">
-                    Group Harmony Plan
+                    Syncing Ideas
                   </span>
                 </div>
                 <div className="px-[18px] py-[14px]">
-                  <p className="text-[0.82rem] text-ink-mid leading-relaxed">
-                    {tripData.harmonyPlan.note}
-                  </p>
-
                   {tripData.harmonyPlan.conflicts?.length ? (
-                    <div className="mt-3 flex flex-col gap-2.5">
+                    <div className="flex flex-col gap-2">
                       {tripData.harmonyPlan.conflicts.map((c, idx) => (
-                        <div key={idx} className="border border-cream-deep rounded-card p-3 bg-parchment/30">
-                          <div className="text-[0.86rem] font-semibold text-ink leading-[1.25]">
-                            {c.title}
-                          </div>
-                          <div className="text-[0.76rem] text-ink-mid mt-1 leading-relaxed">
-                            <span className="font-semibold text-ink-mid">Sides:</span>{' '}
-                            {(c.sides ?? []).filter(Boolean).join(' vs ')}
-                          </div>
-                          <div className="text-[0.76rem] text-ink-mid mt-1 leading-relaxed">
-                            <span className="font-semibold text-ink-mid">Why it conflicts:</span> {c.why}
-                          </div>
-                          <div className="text-[0.76rem] text-ink-mid mt-2 leading-relaxed">
-                            <span className="font-semibold text-ink-mid">Solution:</span>{' '}
-                            {c.resolution?.strategy === 'both'
-                              ? 'Find something with both.'
-                              : c.resolution?.strategy === 'split'
-                                ? 'Split the group for that block.'
-                                : 'Propose a new compromise idea.'}{' '}
-                            {c.resolution?.plan ? `— ${c.resolution.plan}` : ''}
-                          </div>
-                          {c.resolution?.strategy === 'split' && c.splitSuggestion && (
-                            <div className="mt-2 grid grid-cols-2 gap-2">
-                              <div className="rounded-card border border-cream-deep bg-white p-2.5">
-                                <div className="text-[0.66rem] font-semibold tracking-[0.06em] uppercase text-ink-faint">
-                                  Group A
-                                </div>
-                                <div className="text-[0.76rem] text-ink-mid mt-1 leading-relaxed">
-                                  {c.splitSuggestion.groupA}
-                                </div>
-                              </div>
-                              <div className="rounded-card border border-cream-deep bg-white p-2.5">
-                                <div className="text-[0.66rem] font-semibold tracking-[0.06em] uppercase text-ink-faint">
-                                  Group B
-                                </div>
-                                <div className="text-[0.76rem] text-ink-mid mt-1 leading-relaxed">
-                                  {c.splitSuggestion.groupB}
-                                </div>
-                              </div>
-                            </div>
-                          )}
+                        <div key={idx} className="text-[0.78rem] text-ink-mid leading-relaxed">
+                          <span className="font-semibold text-ink">{c.title}:</span>{' '}
+                          {c.why}.{' '}
+                          <span className="font-semibold text-ink">Solved</span>{' '}
+                          {c.resolution?.strategy === 'both'
+                            ? 'by combining both'
+                            : c.resolution?.strategy === 'split'
+                              ? 'by splitting the group'
+                              : 'with a new shared idea'}
+                          {c.resolution?.plan ? ` — ${c.resolution.plan}` : ''}.
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-[0.76rem] text-ink-faint mt-2">
-                      No major conflicts detected in the ideas — the itinerary should keep everyone aligned.
+                    <p className="text-[0.76rem] text-ink-faint">
+                      {tripData.harmonyPlan.note}
                     </p>
                   )}
                 </div>
