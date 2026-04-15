@@ -42,11 +42,35 @@ export async function POST(req: Request) {
       5. Activity "tags": 1–3 short labels (e.g. ["Culture", "Pricey", "Outdoor", "Affordable", "Regular Price"]).
       6. Day "theme": 1–3 words.
       7. If you are not confident about a specific venue, pick a different one you know well.
+      8. Detect conflicting preferences in the group's ideas (e.g. "hiking" vs "relaxing", "party late" vs "early mornings", "splurge" vs "budget").
+      9. If conflicts exist, you MUST include a "harmonyPlan" with a clear resolution using this ladder:
+         - strategy "both": find an option that satisfies both (e.g. scenic walk + spa / cafe).
+         - strategy "split": split the group for that time block (give a suggested plan for group A and group B).
+         - strategy "new_idea": propose a new compromise idea everyone can accept.
+      10. If no conflicts exist, still include "harmonyPlan" with conflicts: [] and a short reassuring note.
 
       Respond ONLY with valid JSON. No explanation, no markdown, no code fences.
 
       {
         "tripName": "${plan.name || 'My Trip'}",
+        "harmonyPlan": {
+          "note": "string",
+          "conflicts": [
+            {
+              "title": "string",
+              "sides": ["string", "string"],
+              "why": "string",
+              "resolution": {
+                "strategy": "both",
+                "plan": "string"
+              },
+              "splitSuggestion": {
+                "groupA": "string",
+                "groupB": "string"
+              }
+            }
+          ]
+        },
         "itinerary": [
           {
             "day": 1,

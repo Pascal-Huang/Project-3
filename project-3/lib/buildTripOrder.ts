@@ -20,6 +20,34 @@ function ideaMeta(idea: Pick<IdeaItem, 'priority' | 'timeCommitment'>): string {
 /** JSON shape returned by `/api/generate-trip` (Gemini). */
 export interface GeneratedTrip {
   tripName: string
+  /**
+   * Optional: present when the model detects conflicting preferences.
+   * The UI can surface this so the group can make an explicit call.
+   */
+  harmonyPlan?: {
+    conflicts: {
+      /** Short label like "Active vs Chill day" */
+      title: string
+      /** What each side wants, in plain language */
+      sides: string[]
+      /** One-sentence explanation of why this is a conflict */
+      why: string
+      /**
+       * The proposed resolution, using the "ladder":
+       * 1) find something with both
+       * 2) split the group for that event
+       * 3) propose a new compromise idea
+       */
+      resolution: {
+        strategy: 'both' | 'split' | 'new_idea'
+        plan: string
+      }
+      /** If strategy is "split", suggest two sub-plans */
+      splitSuggestion?: { groupA: string; groupB: string }
+    }[]
+    /** Quick, actionable note for the group (1–2 sentences). */
+    note: string
+  }
   itinerary: {
     day: number
     theme: string
